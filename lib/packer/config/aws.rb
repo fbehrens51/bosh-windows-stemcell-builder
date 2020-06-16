@@ -38,6 +38,7 @@ module Packer
             launch_block_device_mappings: launch_block_device_mappings,
             communicator: 'winrm',
             winrm_username: 'Administrator',
+            skip_region_validation: true,
             winrm_timeout: '1h',
             user_data_file: File.join(stemcell_builder_dir, 'scripts', 'aws', 'setup_winrm.txt'),
             security_group_id: @region[:security_group],

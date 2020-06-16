@@ -4,7 +4,6 @@ require_relative 'exec_command'
 module S3
   class Client
     def initialize(endpoint: "")
-      Aws.use_bundled_cert!
       Aws.config.update(force_path_style: true)
       if (endpoint.to_s.empty?)
         @s3 = Aws::S3::Client.new()

@@ -214,6 +214,94 @@ describe Packer::Config::Aws do
         ENV.delete('STEMCELL_DEPS_DIR')
       end
 
+      context 'when skip_windows_update is true' do
+        it 'does not include any of the windows update provisioners' do
+          stemcell_deps_dir = Dir.mktmpdir('aws')
+          ENV['STEMCELL_DEPS_DIR'] = stemcell_deps_dir
+
+          allow(SecureRandom).to receive(:hex).and_return("some-password")
+          version = '2019.43.17-build.1'
+          # expected_version_stamp = '2019.43'
+          provisioners = Packer::Config::Aws.new(
+            aws_access_key: '',
+            aws_secret_key: '',
+            region: '',
+            output_directory: 'some-output-directory',
+            os: 'windows2019',
+            version: version,
+            vm_prefix: '',
+            skip_windows_update: true,
+          ).provisioners
+          expected_provisioners_base = [
+            {"type" => "file", "source" => "build/bosh-psmodules.zip", "destination" => "C:\\provision\\bosh-psmodules.zip", "pause_before"=>"60s"},
+            {"type"=>"file", "source"=>"scripts/install-bosh-psmodules.ps1", "destination"=>"C:\\provision\\install-bosh-psmodules.ps1", "pause_before"=>"60s"},
+            {"type"=>"powershell", "inline"=>['$ErrorActionPreference = "Stop";', 'C:\\provision\\install-bosh-psmodules.ps1'], "pause_before"=>"60s"},
+            {"type" => "powershell", "inline" => ["$ErrorActionPreference = \"Stop\";", "trap { $host.SetShouldExit(1) }", "New-Provisioner"]},
+            {"type"=>"powershell", "inline"=> ["$ErrorActionPreference = \"Stop\";", "trap { $host.SetShouldExit(1) }", "Remove-DockerPackage"]},
+            {"type" => "windows-restart", "restart_timeout" => "1h", "check_registry" => true},
+            {"type"=>"powershell", "inline"=> ["$ErrorActionPreference = \"Stop\";", "trap { $host.SetShouldExit(1) }", "Install-CFFeatures2016"]},
+            {"type"=>"powershell", "inline"=>["$ErrorActionPreference = \"Stop\";", "trap { $host.SetShouldExit(1) }", "Enable-Hyper-V"]},
+            {"type" => "windows-restart", "restart_timeout" => "1h", "check_registry" => true},
+            {"type" => "powershell", "inline" => ["$ErrorActionPreference = \"Stop\";", "trap { $host.SetShouldExit(1) }", "Protect-CFCell"]},
+            {"type" => "file", "source" => "../sshd/OpenSSH-Win64.zip", "destination" => "C:\\provision\\OpenSSH-Win64.zip"},
+            {"type" => "powershell", "inline" => ["$ErrorActionPreference = \"Stop\";", "trap { $host.SetShouldExit(1) }", "Install-SSHD -SSHZipFile 'C:\\provision\\OpenSSH-Win64.zip'"]},
+            {"type"=>"powershell", "inline"=> ["$ErrorActionPreference = \"Stop\";", "trap { $host.SetShouldExit(1) }", "Enable-SSHD"]},
+            {"type" => "file", "source" => "build/agent.zip", "destination" => "C:\\provision\\agent.zip"},
+            {"type" => "powershell", "inline" => ["$ErrorActionPreference = \"Stop\";", "trap { $host.SetShouldExit(1) }", "Install-Agent -IaaS aws -agentZipPath 'C:\\provision\\agent.zip'"]},
+            {"type"=>"powershell", "inline"=>["$ErrorActionPreference = \"Stop\";", "trap { $host.SetShouldExit(1) }", "Disable-RC4"]},
+            {"type"=>"powershell", "inline"=>["$ErrorActionPreference = \"Stop\";", "trap { $host.SetShouldExit(1) }", "Disable-TLS1"]},
+            {"type" => "powershell", "inline" => ["$ErrorActionPreference = \"Stop\";", "trap { $host.SetShouldExit(1) }", "Disable-TLS11"]},
+            {"type" => "powershell", "inline" => ["$ErrorActionPreference = \"Stop\";", "trap { $host.SetShouldExit(1) }", "Enable-TLS12"]},
+            {"type"=>"powershell", "inline"=>["$ErrorActionPreference = \"Stop\";", "trap { $host.SetShouldExit(1) }", "Disable-3DES"]},
+            {"type"=>"powershell", "inline"=>["$ErrorActionPreference = \"Stop\";", "trap { $host.SetShouldExit(1) }", "Remove-SSHKeys"]},
+            {"type" => "powershell", "inline" => ["$ErrorActionPreference = \"Stop\";", "trap { $host.SetShouldExit(1) }", "Clear-Provisioner"]},
+            {"type" => "powershell", "inline" => ["$ErrorActionPreference = \"Stop\";", "trap { $host.SetShouldExit(1) }", "Set-InternetExplorerRegistries"]},
+            {"type" => "powershell", "inline" => ["$ErrorActionPreference = \"Stop\";", "trap { $host.SetShouldExit(1) }", "Invoke-Sysprep -IaaS aws"]}
+          ].flatten
+          expect(provisioners.detect {|x| x['destination'] == "C:\\windows\\LGPO.exe"}).not_to be_nil
+
+          expect(provisioners.detect do |p|
+                   p.has_key?('inline') && p['inline'].include?("New-VersionFile -Version '#{version}'")
+                 end).not_to be_nil, "Expect provisioners to include New-VersionFile"
+
+          line_by_line_provisioners = provisioners.delete_if {|x| x['destination'] == "C:\\windows\\LGPO.exe"}
+          line_by_line_provisioners = line_by_line_provisioners.delete_if {|p| p.has_key?('inline') && p['inline'].include?("New-VersionFile -Version '#{version}'")}
+
+          expect(line_by_line_provisioners).to eq (expected_provisioners_base)
+
+
+          FileUtils.rm_rf(stemcell_deps_dir)
+          ENV.delete('STEMCELL_DEPS_DIR')
+        end
+
+        context 'when provisioning with emphemeral disk mounting enabled' do
+          it 'calls Install-Agent with -EnableEphemeralDiskMounting' do
+            allow(SecureRandom).to receive(:hex).and_return("some-password")
+            provisioners = Packer::Config::Aws.new(
+              aws_access_key: '',
+              aws_secret_key: '',
+              region: '',
+              output_directory: 'some-output-directory',
+              os: 'windows2019',
+              version: '',
+              vm_prefix: '',
+              mount_ephemeral_disk: true,
+            ).provisioners
+
+            expect(provisioners).to include(
+                                      {
+                                        "type" => "powershell",
+                                        "inline" => [
+                                          "$ErrorActionPreference = \"Stop\";",
+                                          "trap { $host.SetShouldExit(1) }",
+                                          "Install-Agent -IaaS aws -agentZipPath 'C:\\provision\\agent.zip' -EnableEphemeralDiskMounting"
+                                        ]
+                                      }
+                                    )
+          end
+        end
+      end
+
       context 'when provisioning with emphemeral disk mounting enabled' do
         it 'calls Install-Agent with -EnableEphemeralDiskMounting' do
           allow(SecureRandom).to receive(:hex).and_return("some-password")

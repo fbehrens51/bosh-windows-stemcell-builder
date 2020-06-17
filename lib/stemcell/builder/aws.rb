@@ -1,10 +1,11 @@
 module Stemcell
   class Builder
     class Aws < Base
-      def initialize(ami:, aws_access_key:, aws_secret_key:, vm_prefix:, **args)
+      def initialize(ami:, aws_access_key:, aws_secret_key:, vm_prefix:, skip_windows_update: false, **args)
         @ami = ami
         @aws_access_key = aws_access_key
         @aws_secret_key = aws_secret_key
+        @skip_windows_update = skip_windows_update
         @vm_prefix = vm_prefix
         super(args)
       end
@@ -34,6 +35,7 @@ module Stemcell
           aws_access_key: @aws_access_key,
           aws_secret_key: @aws_secret_key,
           region: @ami,
+          skip_windows_update: @skip_windows_update,
           output_directory: @output_directory,
           os: @os,
           version: @version,

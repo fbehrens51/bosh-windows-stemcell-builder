@@ -36,6 +36,7 @@ describe Stemcell::Builder do
                 aws_secret_key: aws_secret_key,
                 region: amis,
                 output_directory: output_directory,
+                skip_windows_update: false,
                 os: os,
                 version: version,
                 vm_prefix: vm_prefix,
@@ -95,6 +96,7 @@ describe Stemcell::Builder do
           allow(Packer::Config::Aws).to receive(:new)
             .with(aws_access_key: aws_access_key,
                   aws_secret_key: aws_secret_key,
+                  skip_windows_update: false,
                   region: amis,
                   output_directory: output_directory,
                   os: os,

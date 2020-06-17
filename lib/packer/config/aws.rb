@@ -3,9 +3,10 @@ require 'securerandom'
 module Packer
   module Config
     class Aws
-      def initialize(aws_access_key:, aws_secret_key:, region:, os:, output_directory:, version:, vm_prefix: '', mount_ephemeral_disk: false)
+      def initialize(aws_access_key:, aws_secret_key:, region:, os:, output_directory:, version:, vm_prefix: '', mount_ephemeral_disk: false, skip_windows_update: false)
         @aws_access_key = aws_access_key
         @aws_secret_key = aws_secret_key
+        @skip_windows_update = skip_windows_update
         @region = region
         @os = os
         @output_directory = output_directory
@@ -51,7 +52,8 @@ module Packer
       end
 
       def provisioners
-        ProvisionerFactory.new(@os, 'aws', @mount_ephemeral_disk, @version).dump
+        build_context = @skip_windows_update ? :patchfile : nil
+        ProvisionerFactory.new(@os, 'aws', @mount_ephemeral_disk, @version, nil, nil, nil, build_context).dump
       end
 
       def dump

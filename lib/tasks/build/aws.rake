@@ -197,6 +197,7 @@ def get_aws_builder(output_directory, region, base_ami = '')
     version: version,
     region: region,
     vm_prefix: ENV.fetch('VM_PREFIX', ''),
+    skip_windows_update: ENV['SKIP_WINDOWS_UPDATE'] == "true",
     mount_ephemeral_disk: ENV.fetch('MOUNT_EPHEMERAL_DISK', 'false')
   )
 end

@@ -227,6 +227,7 @@
       "Disable-3DES"
     ]
   },
+<% if install_windows_updates %>
   {
     "type": "powershell",
         "inline": [
@@ -235,6 +236,7 @@
         "Get-WUCerts"
       ]
   },
+<% end %>
 <% if proxy_settings != '' %>
   {
     "type": "powershell",

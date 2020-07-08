@@ -17,6 +17,7 @@ module Packer
 
       def builders
         stemcell_builder_dir = File.expand_path('../../../../', __FILE__)
+        packer_ci_keypair_name = ENV.fetch('PACKER_CI_KEY_PAIR_NAME', 'packer_ci')
         packer_ci_private_key_location = ENV.fetch('PACKER_CI_PRIVATE_KEY_LOCATION', '../packer-ci-private-key/key')
         #TODO deleteme. Added to resolve a winrm with newer source ami (ami-0060daada4a15ad8a)
         source_ami = @region[:base_ami]
@@ -44,7 +45,7 @@ module Packer
             user_data_file: File.join(stemcell_builder_dir, 'scripts', 'aws', 'setup_winrm.txt'),
             security_group_id: @region[:security_group],
             ami_groups: 'all',
-            ssh_keypair_name: 'packer_ci',
+            ssh_keypair_name: packer_ci_keypair_name,
             ssh_private_key_file: packer_ci_private_key_location,
             run_tags: { Name: "#{@vm_prefix}-#{Time.now.to_i}" }
           }
